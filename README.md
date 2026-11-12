@@ -14,7 +14,11 @@
   <img src="https://img.shields.io/badge/Android-8.0%2B-FFC107?style=flat-square&labelColor=16191F&logo=android&logoColor=white" alt="Android 8.0 or newer">
   <img src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-FFC107?style=flat-square&labelColor=16191F&logo=kotlin&logoColor=white" alt="Kotlin and Jetpack Compose">
   <img src="https://img.shields.io/badge/internet%20permission-none-FFC107?style=flat-square&labelColor=16191F" alt="No internet permission">
+  <img src="https://img.shields.io/badge/status-early%20preview-E5484D?style=flat-square&labelColor=16191F" alt="Status: early preview">
 </p>
+
+> [!WARNING]
+> **Early preview.** FloatCue is at a very early stage (v0.x). Expect bugs and rough edges, and don't rely on it yet for a recording you can't repeat. Settings and behaviour may change between versions. If something breaks, please [open an issue](https://github.com/ManuFrauca/floatcue/issues/new/choose).
 
 <p align="center">
   <img src="assets/hero.png" width="880" alt="Three phones: the FloatCue settings screen in light theme, the floating teleprompter strip scrolling a script with an amber [pause] marker, and the settings screen in dark theme">
