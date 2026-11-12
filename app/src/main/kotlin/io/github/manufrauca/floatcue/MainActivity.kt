@@ -3,7 +3,6 @@ package io.github.manufrauca.floatcue
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -11,42 +10,62 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import kotlin.math.roundToInt
+
+private const val MAX_SCRIPT_CHARS = 100_000
 
 class MainActivity : ComponentActivity() {
     private lateinit var prefs: Prefs
     private var canDraw by mutableStateOf(false)
     private var running by mutableStateOf(false)
-    private var speed by mutableFloatStateOf(0f) // activity-level: the overlay's buttons change it too
+    private var speed by mutableIntStateOf(0) // activity-level: the overlay's buttons change it too
 
     private val notifPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
@@ -54,6 +73,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false) // the script may be private
         prefs = Prefs(this)
         if (Build.VERSION.SDK_INT >= 33 && !prefs.notificationPermissionAsked &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -66,59 +86,85 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        resumed = true
+        OverlayService.instance?.hide()
         canDraw = Settings.canDrawOverlays(this)
-        running = OverlayService.running
-        speed = prefs.speed
+        running = OverlayService.instance != null
+        speed = prefs.speedLpm
     }
 
+    override fun onPause() {
+        resumed = false
+        OverlayService.instance?.refresh()
+        super.onPause()
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun Screen() {
         var script by remember { mutableStateOf(prefs.script) }
         var size by remember { mutableIntStateOf(prefs.textSize) }
         var opacity by remember { mutableIntStateOf(prefs.opacity) }
         var height by remember { mutableIntStateOf(prefs.heightPercent) }
+        val pauseColor = if (isSystemInDarkTheme()) PAUSE_DARK else PAUSE_LIGHT
+        val pauseHighlight = remember(pauseColor) { PauseTransformation(pauseColor) }
 
-        Scaffold { inner ->
+        Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.app_name)) }) }) { inner ->
             Column(
-                Modifier.fillMaxSize().padding(inner).imePadding().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                Modifier.fillMaxSize().padding(inner).consumeWindowInsets(inner).imePadding().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 OutlinedTextField(
                     value = script,
-                    onValueChange = { script = it; prefs.script = it },
+                    onValueChange = { script = it.take(MAX_SCRIPT_CHARS); prefs.script = script },
                     label = { Text(stringResource(R.string.script_label)) },
                     placeholder = { Text(stringResource(R.string.script_placeholder)) },
-                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    visualTransformation = pauseHighlight,
+                    modifier = Modifier.fillMaxWidth().weight(1f).heightIn(min = 160.dp),
                 )
-                LabeledSlider(
-                    stringResource(R.string.speed, speed.roundToInt()), speed, Prefs.SPEED_MIN..Prefs.SPEED_MAX,
-                ) { speed = it; prefs.speed = it }
-                LabeledSlider(stringResource(R.string.text_size, size), size.toFloat(), 18f..56f) {
-                    size = it.roundToInt(); prefs.textSize = size
+                ElevatedCard(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LabeledSlider(
+                            stringResource(R.string.speed), stringResource(R.string.speed_value, speed),
+                            speed, SPEED_MIN..SPEED_MAX,
+                        ) { speed = it; prefs.speedLpm = it }
+                        LabeledSlider(
+                            stringResource(R.string.text_size), stringResource(R.string.number_value, size),
+                            size, SIZE_MIN..SIZE_MAX,
+                        ) { size = it; prefs.textSize = it }
+                        LabeledSlider(
+                            stringResource(R.string.opacity), stringResource(R.string.percent_value, opacity),
+                            opacity, OPACITY_MIN..OPACITY_MAX,
+                        ) { opacity = it; prefs.opacity = it }
+                        LabeledSlider(
+                            stringResource(R.string.window_height), stringResource(R.string.percent_value, height),
+                            height, HEIGHT_MIN..HEIGHT_MAX,
+                        ) { height = it; prefs.heightPercent = it }
+                    }
                 }
-                LabeledSlider(stringResource(R.string.opacity, opacity), opacity.toFloat(), 30f..100f) {
-                    opacity = it.roundToInt(); prefs.opacity = opacity
-                }
-                LabeledSlider(stringResource(R.string.window_height, height), height.toFloat(), 20f..60f) {
-                    height = it.roundToInt(); prefs.heightPercent = height
-                }
-                if (!canDraw) PermissionCard() else StartStop()
+                if (!canDraw) PermissionCard() else Buttons()
             }
         }
     }
 
     @Composable
-    private fun StartStop() {
+    private fun Buttons() {
         val ctx = LocalContext.current
-        Button(
-            onClick = { OverlayService.start(ctx); running = true },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text(stringResource(R.string.start)) }
-        if (running) {
-            Button(
-                onClick = { OverlayService.stop(ctx); running = false },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.stop)) }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (!running) {
+                Button(
+                    onClick = { OverlayService.start(ctx); running = true; moveTaskToBack(true) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.start)) }
+            } else {
+                Button(onClick = { moveTaskToBack(true) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.back_to_teleprompter))
+                }
+                OutlinedButton(
+                    onClick = { OverlayService.stop(ctx); running = false },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.stop)) }
+            }
         }
     }
 
@@ -130,19 +176,52 @@ class MainActivity : ComponentActivity() {
                 Text(stringResource(R.string.perm_body))
                 Text(stringResource(R.string.perm_restricted), style = MaterialTheme.typography.bodySmall)
                 Button(onClick = {
-                    startActivity(
-                        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")),
-                    )
+                    startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:$packageName".toUri()))
                 }) { Text(stringResource(R.string.perm_button)) }
             }
         }
     }
+
+    companion object {
+        /** True while this screen is in front; the overlay stays hidden meanwhile. */
+        @Volatile var resumed = false
+            private set
+    }
 }
 
+// Amber like the overlay's pause words; the darker shade keeps 4.5:1 contrast on a light surface.
+private val PAUSE_LIGHT = Color(0xFFB26A00)
+private val PAUSE_DARK = Color(0xFFFFC107)
+
+private class PauseTransformation(private val color: Color) : VisualTransformation {
+    override fun filter(text: androidx.compose.ui.text.AnnotatedString): TransformedText {
+        val styled = buildAnnotatedString {
+            append(text.text)
+            for (r in pauseRanges(text.text)) {
+                addStyle(SpanStyle(color = color, fontWeight = FontWeight.Bold), r.first, r.last + 1)
+            }
+        }
+        return TransformedText(styled, OffsetMapping.Identity)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LabeledSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
-    Text(label, style = MaterialTheme.typography.labelLarge)
-    Slider(value = value, onValueChange = onChange, valueRange = range)
+private fun LabeledSlider(label: String, valueText: String, value: Int, range: IntRange, onChange: (Int) -> Unit) {
+    Column {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Text(valueText, style = MaterialTheme.typography.labelLarge)
+        }
+        Slider(
+            value = value.toFloat(),
+            onValueChange = { onChange(it.roundToInt()) },
+            valueRange = range.first.toFloat()..range.last.toFloat(),
+            steps = range.last - range.first - 1,
+            modifier = Modifier.semantics { contentDescription = label },
+            track = { SliderDefaults.Track(it, drawStopIndicator = null, drawTick = { _, _ -> }) },
+        )
+    }
 }
 
 @Composable

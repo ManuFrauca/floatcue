@@ -10,3 +10,6 @@
 *.jks
 *.keystore
 .kotlin/
+keystore.properties
+*.p12
+*.pk8

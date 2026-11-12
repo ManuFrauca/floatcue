@@ -1,5 +1,6 @@
 package io.github.manufrauca.floatcue
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -13,33 +14,48 @@ import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
+import android.hardware.display.DisplayManager
+import android.os.Build
 import android.os.IBinder
+import android.provider.Settings
+import android.view.Display
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.ImageButton
 import android.widget.LinearLayout
-import android.widget.TextView
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import androidx.core.view.ViewCompat
 import kotlin.math.roundToInt
 
 class OverlayService : Service() {
     private lateinit var wm: WindowManager
+    private lateinit var ui: Context // window context: correct metrics/density for an overlay started from a service
     private lateinit var prefs: Prefs
     private var root: View? = null
     private var prompter: PrompterView? = null
     private var params: WindowManager.LayoutParams? = null
     private var playButton: ImageButton? = null
+    private var speedToast: Toast? = null
+    private var screenH = 0
+    private var topInset = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
-        wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        ui = if (Build.VERSION.SDK_INT >= 30) {
+            val display = getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY)
+            createDisplayContext(display).createWindowContext(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, null)
+        } else this
+        wm = ui.getSystemService(WindowManager::class.java)
         prefs = Prefs(this)
+        instance = this
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(CHANNEL, getString(R.string.notif_channel), NotificationManager.IMPORTANCE_LOW),
         )
@@ -48,21 +64,21 @@ class OverlayService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
-            ACTION_TOGGLE -> prompter?.let { it.setPlaying(!it.playing) }
+            ACTION_TOGGLE -> if (root?.visibility == View.VISIBLE) prompter?.let { it.setPlaying(!it.playing) }
             else -> {
-                ServiceCompat.startForeground(
-                    this, NOTIF_ID, notification(false), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
-                )
-                if (!android.provider.Settings.canDrawOverlays(this)) { stopSelf(); return START_NOT_STICKY }
-                running = true
-                showOverlay()
+                // ServiceCompat drops the specialUse type on API < 34, so this constant is safe on API 26+.
+                @SuppressLint("InlinedApi")
+                val type = ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                ServiceCompat.startForeground(this, NOTIF_ID, notification(false), type)
+                if (!Settings.canDrawOverlays(this)) { stopSelf(); return START_NOT_STICKY }
+                showOverlay(prompter?.progress ?: 0f)
             }
         }
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
-        running = false
+        instance = null
         removeOverlay()
         super.onDestroy()
     }
@@ -72,27 +88,37 @@ class OverlayService : Service() {
         root = null; prompter = null; params = null; playButton = null
     }
 
-    private fun showOverlay() {
+    /** Called while FloatCue's own settings screen is in front: the strip would only cover it. */
+    fun hide() {
+        prompter?.setPlaying(false)
+        root?.visibility = View.GONE
+    }
+
+    /** Called when the settings screen goes away: re-reads every pref, keeps reading progress, stays paused. */
+    fun refresh() = showOverlay(prompter?.progress ?: 0f)
+
+    private fun showOverlay(progress: Float) {
         removeOverlay() // restart: re-read settings, never two windows
-        val screenH = screenHeight()
+        val dp = resources.displayMetrics.density
+        measureScreen()
         val h = screenH * prefs.heightPercent / 100
         val lp = WindowManager.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, h,
+            screenW - (16 * dp).toInt(), h,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT,
         ).apply {
-            gravity = Gravity.TOP
-            y = (if (prefs.overlayY >= 0) prefs.overlayY else statusBarHeight()).coerceIn(0, screenH - h)
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            y = clampY(if (prefs.overlayY >= 0) prefs.overlayY else topInset, topInset, screenH, h)
         }
         params = lp
 
-        val p = PrompterView(this).apply {
-            speedDp = prefs.speed
+        val p = PrompterView(ui).apply {
+            speedLpm = prefs.speedLpm
             val script = prefs.script
-            setScript(script.ifBlank { getString(R.string.empty_script_hint) }, prefs.textSize)
+            setScript(script.ifBlank { getString(R.string.empty_script_hint) }, prefs.textSize, progress)
             onPlayingChanged = { playing ->
                 playButton?.apply {
                     setImageResource(if (playing) R.drawable.ic_pause else R.drawable.ic_play)
@@ -103,8 +129,7 @@ class OverlayService : Service() {
         }
         prompter = p
 
-        val dp = resources.displayMetrics.density
-        val row = LinearLayout(this).apply {
+        val row = LinearLayout(ui).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             addView(gripButton(lp))
@@ -116,36 +141,58 @@ class OverlayService : Service() {
             addView(button(R.drawable.ic_restart, R.string.cd_restart) { p.restart() })
             addView(button(R.drawable.ic_close, R.string.cd_close) { stopSelf() })
         }
-        val column = LinearLayout(this).apply {
+        val column = LinearLayout(ui).apply {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
                 setColor(Color.argb((prefs.opacity * 255 / 100), 0, 0, 0))
-                cornerRadius = 16 * dp
+                cornerRadius = 20 * dp
+                setStroke(dp.toInt().coerceAtLeast(1), 0x1FFFFFFF)
             }
+            clipToOutline = true
             addView(p, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
             addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (48 * dp).toInt()))
         }
         root = column
+        // Never over our own settings screen (it may still be resumed when the service starts).
+        if (MainActivity.resumed) column.visibility = View.GONE
         wm.addView(column, lp)
+        if (!MainActivity.resumed && progress == 0f) {
+            Toast.makeText(this, R.string.toast_tap_to_start, Toast.LENGTH_SHORT).show()
+        }
     }
 
-    private fun screenHeight() = resources.displayMetrics.heightPixels
+    // The top inset (status bar / cutout) is where the front camera is, so the strip rests right below it.
+    private var screenW = 0
 
-    // The status bar is as tall as the display cutout on the target device, so this lands next to the camera.
-    private fun statusBarHeight(): Int {
-        val id = resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (id > 0) resources.getDimensionPixelSize(id) else 0
+    private fun measureScreen() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            val m = wm.currentWindowMetrics
+            screenW = m.bounds.width()
+            screenH = m.bounds.height()
+            topInset = m.windowInsets
+                .getInsetsIgnoringVisibility(WindowInsets.Type.statusBars() or WindowInsets.Type.displayCutout()).top
+        } else {
+            @Suppress("DEPRECATION")
+            val dm = resources.displayMetrics
+            screenW = dm.widthPixels
+            screenH = dm.heightPixels
+            @SuppressLint("DiscouragedApi", "InternalInsetResource")
+            val id = resources.getIdentifier("status_bar_height", "dimen", "android")
+            topInset = if (id > 0) resources.getDimensionPixelSize(id) else 0
+        }
     }
 
     private fun changeSpeed(factor: Float) {
         val p = prompter ?: return
-        p.speedDp = (p.speedDp * factor).coerceIn(Prefs.SPEED_MIN, Prefs.SPEED_MAX)
-        prefs.speed = p.speedDp
+        p.speedLpm = stepSpeed(p.speedLpm, factor)
+        prefs.speedLpm = p.speedLpm
+        speedToast?.cancel()
+        speedToast = Toast.makeText(this, getString(R.string.toast_speed, p.speedLpm), Toast.LENGTH_SHORT).also { it.show() }
     }
 
     private fun button(icon: Int, desc: Int, onClick: () -> Unit): ImageButton {
         val size = (48 * resources.displayMetrics.density).toInt()
-        return ImageButton(this).apply {
+        return ImageButton(ui).apply {
             setImageResource(icon)
             contentDescription = getString(desc)
             background = ripple()
@@ -158,8 +205,13 @@ class OverlayService : Service() {
         ColorStateList.valueOf(0x44FFFFFF), null, GradientDrawable().apply { setColor(Color.WHITE); shape = GradientDrawable.OVAL },
     )
 
+    private fun moveTo(lp: WindowManager.LayoutParams, y: Int) {
+        lp.y = clampY(y, topInset, screenH, lp.height)
+        root?.let { wm.updateViewLayout(it, lp) }
+        prefs.overlayY = lp.y
+    }
+
     private fun gripButton(lp: WindowManager.LayoutParams): ImageButton {
-        val screenH = screenHeight()
         var startY = 0; var startTouch = 0f
         return button(R.drawable.ic_grip, R.string.cd_move) {}.apply {
             setOnClickListener(null)
@@ -167,13 +219,16 @@ class OverlayService : Service() {
                 when (e.actionMasked) {
                     MotionEvent.ACTION_DOWN -> { startY = lp.y; startTouch = e.rawY }
                     MotionEvent.ACTION_MOVE -> {
-                        lp.y = (startY + (e.rawY - startTouch)).roundToInt().coerceIn(0, screenH - lp.height)
+                        lp.y = clampY((startY + (e.rawY - startTouch)).roundToInt(), topInset, screenH, lp.height)
                         root?.let { wm.updateViewLayout(it, lp) }
                     }
                     MotionEvent.ACTION_UP -> { prefs.overlayY = lp.y; v.performClick() }
                 }
                 true
             }
+            val step = screenH / 10
+            ViewCompat.addAccessibilityAction(this, getString(R.string.action_move_up)) { _, _ -> moveTo(lp, lp.y - step); true }
+            ViewCompat.addAccessibilityAction(this, getString(R.string.action_move_down)) { _, _ -> moveTo(lp, lp.y + step); true }
         }
     }
 
@@ -193,7 +248,7 @@ class OverlayService : Service() {
             .setContentIntent(
                 PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE),
             )
-            .addAction(action(ACTION_TOGGLE, if (playing) R.string.action_pause else R.string.action_resume, 1))
+            .addAction(action(ACTION_TOGGLE, if (playing) R.string.action_pause else R.string.action_play, 1))
             .addAction(action(ACTION_STOP, R.string.action_stop, 2))
             .build()
     }
@@ -204,7 +259,10 @@ class OverlayService : Service() {
         private const val ACTION_TOGGLE = "io.github.manufrauca.floatcue.TOGGLE"
         const val ACTION_STOP = "io.github.manufrauca.floatcue.STOP"
 
-        @Volatile var running = false
+        /** Set while the service exists; the settings screen uses it as "is the teleprompter running". */
+        // Cleared in onDestroy, so it cannot outlive the service.
+        @SuppressLint("StaticFieldLeak")
+        @Volatile var instance: OverlayService? = null
             private set
 
         fun start(context: Context) =
