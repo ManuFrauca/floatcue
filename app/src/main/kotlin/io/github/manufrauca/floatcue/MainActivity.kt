@@ -11,6 +11,27 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,6 +67,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -60,6 +82,7 @@ import androidx.core.net.toUri
 import kotlin.math.roundToInt
 
 private const val MAX_SCRIPT_CHARS = 100_000
+private const val PREVIEW_CHARS = 400 // the preview only shows the first lines
 
 class MainActivity : ComponentActivity() {
     private lateinit var prefs: Prefs
@@ -109,9 +132,17 @@ class MainActivity : ComponentActivity() {
         val pauseColor = if (isSystemInDarkTheme()) PAUSE_DARK else PAUSE_LIGHT
         val pauseHighlight = remember(pauseColor) { PauseTransformation(pauseColor) }
 
+        val dm = LocalResources.current.displayMetrics
+        var lines by remember { mutableIntStateOf(-1) } // -1: not measured yet
+        LaunchedEffect(script, size) {
+            if (lines >= 0) delay(150) // debounce typing; the first measurement is immediate
+            lines = withContext(Dispatchers.Default) { countScriptLines(dm, script, size) }
+        }
+
         Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.app_name)) }) }) { inner ->
             Column(
-                Modifier.fillMaxSize().padding(inner).consumeWindowInsets(inner).imePadding().padding(16.dp),
+                Modifier.fillMaxSize().padding(inner).consumeWindowInsets(inner).imePadding()
+                    .verticalScroll(rememberScrollState()).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 OutlinedTextField(
@@ -120,14 +151,30 @@ class MainActivity : ComponentActivity() {
                     label = { Text(stringResource(R.string.script_label)) },
                     placeholder = { Text(stringResource(R.string.script_placeholder)) },
                     visualTransformation = pauseHighlight,
-                    modifier = Modifier.fillMaxWidth().weight(1f).heightIn(min = 160.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp, max = 360.dp),
                 )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val words = wordCount(script)
+                    Text(
+                        when {
+                            script.isBlank() -> stringResource(R.string.stats_empty)
+                            lines < 0 -> pluralStringResource(R.plurals.words, words, words)
+                            else -> stringResource(
+                                R.string.stats_format, pluralStringResource(R.plurals.words, words, words),
+                                durationLabel(durationSeconds(lines, speed)),
+                            )
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    LabeledSlider(
+                        stringResource(R.string.speed), stringResource(R.string.speed_value, speed),
+                        speed, SPEED_MIN..SPEED_MAX,
+                    ) { speed = it; prefs.speedLpm = it }
+                }
                 ElevatedCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        LabeledSlider(
-                            stringResource(R.string.speed), stringResource(R.string.speed_value, speed),
-                            speed, SPEED_MIN..SPEED_MAX,
-                        ) { speed = it; prefs.speedLpm = it }
+                        StripPreview(script.take(PREVIEW_CHARS), size, opacity)
                         LabeledSlider(
                             stringResource(R.string.text_size), stringResource(R.string.number_value, size),
                             size, SIZE_MIN..SIZE_MAX,
@@ -142,28 +189,36 @@ class MainActivity : ComponentActivity() {
                         ) { height = it; prefs.heightPercent = it }
                     }
                 }
-                if (!canDraw) PermissionCard() else Buttons()
+                if (!canDraw) PermissionCard() else Buttons(script.isNotBlank())
             }
         }
     }
 
     @Composable
-    private fun Buttons() {
+    private fun Buttons(hasScript: Boolean) {
         val ctx = LocalContext.current
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (!running) {
                 Button(
                     onClick = { OverlayService.start(ctx); running = true; moveTaskToBack(true) },
+                    enabled = hasScript,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.start)) }
+                ) { IconLabel(R.drawable.ic_play, R.string.start) }
+                if (!hasScript) {
+                    Text(
+                        stringResource(R.string.start_helper),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             } else {
                 Button(onClick = { moveTaskToBack(true) }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.back_to_teleprompter))
+                    IconLabel(R.drawable.ic_arrow_up, R.string.back_to_teleprompter)
                 }
                 OutlinedButton(
                     onClick = { OverlayService.stop(ctx); running = false },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.stop)) }
+                ) { IconLabel(R.drawable.ic_stop, R.string.stop) }
             }
         }
     }
@@ -202,6 +257,32 @@ private class PauseTransformation(private val color: Color) : VisualTransformati
             }
         }
         return TransformedText(styled, OffsetMapping.Identity)
+    }
+}
+
+@Composable
+private fun IconLabel(icon: Int, label: Int) {
+    Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+    Text(stringResource(label))
+}
+
+/** A static frame of the real strip over a stand-in camera scene. */
+@Composable
+private fun StripPreview(script: String, sizeSp: Int, opacity: Int) {
+    val placeholder = stringResource(R.string.preview_placeholder)
+    val shape = RoundedCornerShape(20.dp)
+    Box(
+        Modifier.fillMaxWidth().height(112.dp).clip(shape)
+            .background(Brush.verticalGradient(listOf(Color(0xFF6B7A8F), Color(0xFFC9B79C)))),
+    ) {
+        Box(Modifier.matchParentSize().background(Color(INK).copy(alpha = opacity / 100f)))
+        AndroidView(
+            factory = { PrompterView(it, preview = true) },
+            update = { it.setScript(script.ifBlank { placeholder }, sizeSp) },
+            modifier = Modifier.matchParentSize(),
+        )
+        Box(Modifier.matchParentSize().border(1.dp, Color.White.copy(alpha = 0.14f), shape))
     }
 }
 

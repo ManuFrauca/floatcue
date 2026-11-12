@@ -13,8 +13,15 @@
     <string name="start">Start teleprompter</string>
     <string name="back_to_teleprompter">Back to teleprompter</string>
     <string name="stop">Stop teleprompter</string>
-    <string name="toast_tap_to_start">Tap the text to start</string>
-    <string name="toast_speed">Speed: %1$d lines/min</string>
+    <string name="hud_tap_to_start">Tap to start</string>
+    <string name="start_helper">Write your script first.</string>
+    <string name="stats_empty">Write or paste your script to begin.</string>
+    <string name="stats_format">%1$s, %2$s</string>
+    <plurals name="words">
+        <item quantity="one">%1$d word</item>
+        <item quantity="other">%1$d words</item>
+    </plurals>
+    <string name="preview_placeholder">Your script will appear here.</string>
     <string name="cd_script">Script. Double-tap to play or pause.</string>
     <string name="state_playing">Playing</string>
     <string name="state_paused">Paused</string>

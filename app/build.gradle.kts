@@ -13,8 +13,8 @@ android {
         applicationId = "io.github.manufrauca.floatcue"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
     // Signing comes from keystore.properties (gitignored) or FLOATCUE_* env vars; without either, release stays unsigned.

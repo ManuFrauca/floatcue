@@ -74,11 +74,12 @@ FloatCue doesn't record anything. It floats a strip of text over the camera app 
 
 | Reading | Control | Comfort |
 |---|---|---|
-| Smooth, time-based scrolling | Tap to play or pause | Strip hides while you edit, then returns where you left off |
-| Speed in lines per minute (10&ndash;80) | Drag the text to go back or forward | Adjustable text size, opacity and height |
-| Amber caret marks the reading line | Slower, faster, restart, close | Text shadow and soft edges for any background |
+| Smooth, time-based scrolling with eased speed changes | Tap to play or pause, with a 3-2-1 countdown at the start | Strip hides while you edit, then returns where you left off |
+| Speed in lines per minute (10&ndash;80) | Drag the text to go back or forward | Adjustable text size, opacity and height, with a live preview |
+| Amber caret marks the reading line; text you have read dims | Slower, faster, restart, close | Text shadow and soft edges for any background |
 | Highlighted `[pause]` markers | Play, pause and stop from the notification | TalkBack support, including moving the strip |
-| Sits below the camera cutout | Drag the grip to move the strip | Everything saves automatically |
+| Thin progress bar along the top of the strip | Drag the grip to move the strip | Word count and estimated reading time as you write |
+| Sits below the camera cutout | Short on-strip hints for speed and start | Everything saves automatically |
 
 Portrait only. Touches outside the strip go straight to the app underneath, so the shutter button keeps working.
 
@@ -148,8 +149,9 @@ You can use the environment variables `FLOATCUE_KEYSTORE`, `FLOATCUE_KEYSTORE_PA
 app/src/main/kotlin/io/github/manufrauca/floatcue/
 ├── MainActivity.kt      settings screen (Compose, Material 3)
 ├── OverlayService.kt    foreground service that owns the floating strip
-├── PrompterView.kt      scrolling text, reading caret, touch handling
-├── PrompterMath.kt      speed, progress and position maths (unit-tested)
+├── PrompterView.kt      scrolling text, caret, countdown, hints, touch handling
+├── PrompterText.kt      text setup and colours shared by strip, preview and estimate
+├── PrompterMath.kt      speed, easing, progress and duration maths (unit-tested)
 ├── PauseHighlighter.kt  finds [pause] / pausa markers (unit-tested)
 └── Prefs.kt             settings and script, stored on the device
 ```

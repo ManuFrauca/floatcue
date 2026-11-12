@@ -13,6 +13,7 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.RippleDrawable
 import android.hardware.display.DisplayManager
 import android.os.Build
@@ -20,6 +21,7 @@ import android.os.IBinder
 import android.provider.Settings
 import android.view.Display
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -27,7 +29,6 @@ import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.ImageButton
 import android.widget.LinearLayout
-import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.view.ViewCompat
@@ -41,7 +42,6 @@ class OverlayService : Service() {
     private var prompter: PrompterView? = null
     private var params: WindowManager.LayoutParams? = null
     private var playButton: ImageButton? = null
-    private var speedToast: Toast? = null
     private var screenH = 0
     private var topInset = 0
 
@@ -64,7 +64,7 @@ class OverlayService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
-            ACTION_TOGGLE -> if (root?.visibility == View.VISIBLE) prompter?.let { it.setPlaying(!it.playing) }
+            ACTION_TOGGLE -> if (root?.visibility == View.VISIBLE) prompter?.toggle(haptic = false)
             else -> {
                 // ServiceCompat drops the specialUse type on API < 34, so this constant is safe on API 26+.
                 @SuppressLint("InlinedApi")
@@ -90,7 +90,7 @@ class OverlayService : Service() {
 
     /** Called while FloatCue's own settings screen is in front: the strip would only cover it. */
     fun hide() {
-        prompter?.setPlaying(false)
+        prompter?.halt()
         root?.visibility = View.GONE
     }
 
@@ -112,6 +112,7 @@ class OverlayService : Service() {
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             y = clampY(if (prefs.overlayY >= 0) prefs.overlayY else topInset, topInset, screenH, h)
+            windowAnimations = android.R.style.Animation_Toast // fade in/out
         }
         params = lp
 
@@ -134,17 +135,17 @@ class OverlayService : Service() {
             gravity = Gravity.CENTER_VERTICAL
             addView(gripButton(lp))
             addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
-            addView(button(R.drawable.ic_slower, R.string.cd_slower) { changeSpeed(0.9f) })
-            playButton = button(R.drawable.ic_play, R.string.cd_play) { p.setPlaying(!p.playing) }
+            addView(button(R.drawable.ic_slower, R.string.cd_slower) { it.tick(); changeSpeed(0.9f) })
+            playButton = button(R.drawable.ic_play, R.string.cd_play, filled = true) { p.toggle() }
             addView(playButton)
-            addView(button(R.drawable.ic_faster, R.string.cd_faster) { changeSpeed(1.1f) })
+            addView(button(R.drawable.ic_faster, R.string.cd_faster) { it.tick(); changeSpeed(1.1f) })
             addView(button(R.drawable.ic_restart, R.string.cd_restart) { p.restart() })
             addView(button(R.drawable.ic_close, R.string.cd_close) { stopSelf() })
         }
         val column = LinearLayout(ui).apply {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
-                setColor(Color.argb((prefs.opacity * 255 / 100), 0, 0, 0))
+                setColor(inkWithOpacity(prefs.opacity))
                 cornerRadius = 20 * dp
                 setStroke(dp.toInt().coerceAtLeast(1), 0x1FFFFFFF)
             }
@@ -156,9 +157,7 @@ class OverlayService : Service() {
         // Never over our own settings screen (it may still be resumed when the service starts).
         if (MainActivity.resumed) column.visibility = View.GONE
         wm.addView(column, lp)
-        if (!MainActivity.resumed && progress == 0f) {
-            Toast.makeText(this, R.string.toast_tap_to_start, Toast.LENGTH_SHORT).show()
-        }
+        if (!MainActivity.resumed && progress == 0f) p.showStartHint()
     }
 
     // The top inset (status bar / cutout) is where the front camera is, so the strip rests right below it.
@@ -186,24 +185,35 @@ class OverlayService : Service() {
         val p = prompter ?: return
         p.speedLpm = stepSpeed(p.speedLpm, factor)
         prefs.speedLpm = p.speedLpm
-        speedToast?.cancel()
-        speedToast = Toast.makeText(this, getString(R.string.toast_speed, p.speedLpm), Toast.LENGTH_SHORT).also { it.show() }
+        p.showHud(getString(R.string.speed_value, p.speedLpm))
     }
 
-    private fun button(icon: Int, desc: Int, onClick: () -> Unit): ImageButton {
+    private fun View.tick() { performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) }
+
+    /** 48dp touch target; [filled] puts a 44dp circle behind the icon (play/pause), others are slightly dimmed. */
+    private fun button(icon: Int, desc: Int, filled: Boolean = false, onClick: (View) -> Unit): ImageButton {
         val size = (48 * resources.displayMetrics.density).toInt()
         return ImageButton(ui).apply {
             setImageResource(icon)
+            if (!filled) imageAlpha = 217 // 85 %
             contentDescription = getString(desc)
-            background = ripple()
+            background = if (filled) filledRipple() else ripple()
             layoutParams = LinearLayout.LayoutParams(size, size)
-            setOnClickListener { onClick() }
+            setOnClickListener { onClick(it) }
         }
     }
 
     private fun ripple() = RippleDrawable(
         ColorStateList.valueOf(0x44FFFFFF), null, GradientDrawable().apply { setColor(Color.WHITE); shape = GradientDrawable.OVAL },
     )
+
+    private fun filledRipple(): RippleDrawable {
+        val inset = (2 * resources.displayMetrics.density).toInt()
+        fun circle(color: Int) = InsetDrawable(
+            GradientDrawable().apply { setColor(color); shape = GradientDrawable.OVAL }, inset,
+        )
+        return RippleDrawable(ColorStateList.valueOf(0x44FFFFFF), circle(0x24FFFFFF), circle(Color.WHITE))
+    }
 
     private fun moveTo(lp: WindowManager.LayoutParams, y: Int) {
         lp.y = clampY(y, topInset, screenH, lp.height)
@@ -215,6 +225,7 @@ class OverlayService : Service() {
         var startY = 0; var startTouch = 0f
         return button(R.drawable.ic_grip, R.string.cd_move) {}.apply {
             setOnClickListener(null)
+            imageAlpha = 153 // 60 %
             setOnTouchListener { v, e ->
                 when (e.actionMasked) {
                     MotionEvent.ACTION_DOWN -> { startY = lp.y; startTouch = e.rawY }

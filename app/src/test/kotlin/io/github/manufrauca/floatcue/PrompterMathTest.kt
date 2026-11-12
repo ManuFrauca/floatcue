@@ -34,4 +34,31 @@ class PrompterMathTest {
         assertEquals(1400, clampY(1900, 80, 2000, 600))
         assertEquals(500, clampY(500, 80, 2000, 600))
     }
+
+    @Test fun easeTowardMovesPartWayAndConverges() {
+        assertEquals(0f, easeToward(0f, 100f, 0f, 0.22f), 0f)
+        assertEquals(63.2f, easeToward(0f, 100f, 0.22f, 0.22f), 0.1f)
+        assertEquals(100f, easeToward(0f, 100f, 10f, 0.22f), 0.01f)
+        assertEquals(40f, easeToward(100f, 40f, 0f, 0f) , 0f)
+        assertEquals(0f, easeToward(50f, 0f, 5f, 0.22f), 0.01f)
+    }
+
+    @Test fun durationUsesLinesMinusOne() {
+        assertEquals(60f, durationSeconds(31, 30), 0.001f)
+        assertEquals(0f, durationSeconds(1, 30), 0f)
+        assertEquals(0f, durationSeconds(0, 30), 0f)
+    }
+
+    @Test fun durationLabelFormats() {
+        assertEquals("about 40 s", durationLabel(40f))
+        assertEquals("about 1 min 20 s", durationLabel(81f))
+        assertEquals("about 2 min", durationLabel(119f))
+        assertEquals("about 5 s", durationLabel(3f))
+        assertEquals("less than 5 s", durationLabel(1f))
+    }
+
+    @Test fun wordCountIgnoresWhitespaceRuns() {
+        assertEquals(4, wordCount("  Hello   brave\nnew\tworld "))
+        assertEquals(0, wordCount("  \n "))
+    }
 }

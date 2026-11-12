@@ -1,5 +1,6 @@
 package io.github.manufrauca.floatcue
 
+import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -26,3 +27,25 @@ internal fun scrollFor(progress: Float, maxScroll: Float): Float = progress.coer
 
 /** Keeps a window of height [h] inside [top]..[screenH]. */
 internal fun clampY(y: Int, top: Int, screenH: Int, h: Int): Int = y.coerceIn(top, max(top, screenH - h))
+
+/** Exponential smoothing of [v] toward [target]; [tau] is the time constant in seconds. */
+internal fun easeToward(v: Float, target: Float, dt: Float, tau: Float): Float =
+    if (tau <= 0f) target else v + (target - v) * (1f - exp(-dt / tau))
+
+internal fun wordCount(text: String): Int = text.split(Regex("\\s+")).count { it.isNotEmpty() }
+
+/** Reading time for [lineCount] lines at [lpm]: the first line is already on the reading line. */
+internal fun durationSeconds(lineCount: Int, lpm: Int): Float = max(0, lineCount - 1) * 60f / lpm
+
+/** "about 1 min 20 s", "about 40 s", "about 2 min"; rounded to 5 s. */
+internal fun durationLabel(seconds: Float): String {
+    val s = ((seconds / 5f).roundToInt() * 5)
+    if (s < 5) return "less than 5 s"
+    val m = s / 60
+    val r = s % 60
+    return "about " + when {
+        m == 0 -> "$r s"
+        r == 0 -> "$m min"
+        else -> "$m min $r s"
+    }
+}
