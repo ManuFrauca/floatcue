@@ -1,25 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Same mark as assets/logo.svg (512 grid), scaled into the adaptive-icon safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#00000000"
-        android:pathData="M36,40H72"
-        android:strokeColor="#FFFFFF"
-        android:strokeLineCap="round"
-        android:strokeWidth="6" />
-    <path
-        android:fillColor="#00000000"
-        android:pathData="M36,54H72"
-        android:strokeColor="#FFC107"
-        android:strokeLineCap="round"
-        android:strokeWidth="6" />
-    <path
-        android:fillColor="#00000000"
-        android:pathData="M36,68H60"
-        android:strokeColor="#FFFFFF"
-        android:strokeLineCap="round"
-        android:strokeWidth="6" />
+    <group
+        android:scaleX="0.155"
+        android:scaleY="0.155"
+        android:translateX="14.32"
+        android:translateY="14.32">
+        <path android:fillColor="#FFFFFF" android:fillAlpha="0.18"
+            android:pathData="M256,70a14,14 0,1 1,0 28a14,14 0,1 1,0 -28z" />
+        <path android:fillColor="#FFC107" android:pathData="M100,178L140,202L100,226Z" />
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="34" android:strokeLineCap="round"
+            android:pathData="M180,202L404,202" />
+        <path android:strokeColor="#FFFFFF" android:strokeAlpha="0.72" android:strokeWidth="34" android:strokeLineCap="round"
+            android:pathData="M180,280L372,280" />
+        <path android:strokeColor="#FFFFFF" android:strokeAlpha="0.45" android:strokeWidth="34" android:strokeLineCap="round"
+            android:pathData="M180,358L236,358" />
+        <path android:strokeColor="#FFC107" android:strokeWidth="34" android:strokeLineCap="round"
+            android:pathData="M290,358L404,358" />
+        <path android:strokeColor="#FFFFFF" android:strokeAlpha="0.18" android:strokeWidth="34" android:strokeLineCap="round"
+            android:pathData="M180,436L300,436" />
+    </group>
 </vector>

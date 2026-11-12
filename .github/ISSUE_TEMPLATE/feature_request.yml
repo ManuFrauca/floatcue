@@ -1,0 +1,15 @@
+name: Feature idea
+description: Suggest something that would make reading while recording easier
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What gets in your way today?
+      description: Describe the moment while recording where FloatCue falls short.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
