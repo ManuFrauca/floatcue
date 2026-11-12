@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FloatCue</string>
+    <string name="script_label">Script</string>
+    <string name="script_placeholder">Write your script here. Type [pause] where you want to breathe.</string>
+    <string name="speed">Speed: %1$d dp/s</string>
+    <string name="text_size">Text size: %1$d sp</string>
+    <string name="opacity">Background opacity: %1$d%%</string>
+    <string name="window_height">Window height: %1$d%% of screen</string>
+    <string name="start">Start</string>
+    <string name="stop">Stop</string>
+    <string name="perm_title">Permission needed</string>
+    <string name="perm_body">FloatCue draws the teleprompter over your camera app. Allow \"Display over other apps\" for FloatCue to continue.</string>
+    <string name="perm_restricted">If the toggle is greyed out (Android 15+, sideloaded apps): open App info, tap the three-dot menu, then \"Allow restricted settings\".</string>
+    <string name="perm_button">Open settings</string>
+    <string name="empty_script_hint">Your script is empty. Open FloatCue and write it first.</string>
+    <string name="notif_channel">Teleprompter</string>
+    <string name="notif_title">FloatCue is running</string>
+    <string name="notif_text">The teleprompter is shown over other apps.</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_stop">Stop</string>
+    <string name="cd_slower">Slower</string>
+    <string name="cd_faster">Faster</string>
+    <string name="cd_play">Play</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_restart">Restart from the beginning</string>
+    <string name="cd_close">Close teleprompter</string>
+    <string name="cd_move">Drag to move the teleprompter</string>
+</resources>
