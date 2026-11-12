@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/ManuFrauca/floatcue/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/ManuFrauca/floatcue/ci.yml?branch=main&style=flat-square&label=CI&labelColor=16191F&color=FFC107" alt="CI status"></a>
+  <a href="https://github.com/ManuFrauca/floatcue/releases"><img src="https://img.shields.io/github/v/release/ManuFrauca/floatcue?include_prereleases&style=flat-square&label=release&labelColor=16191F&color=FFC107" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-FFC107?style=flat-square&labelColor=16191F" alt="License: GPL-3.0"></a>
   <img src="https://img.shields.io/badge/Android-8.0%2B-FFC107?style=flat-square&labelColor=16191F&logo=android&logoColor=white" alt="Android 8.0 or newer">
   <img src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-FFC107?style=flat-square&labelColor=16191F&logo=kotlin&logoColor=white" alt="Kotlin and Jetpack Compose">
