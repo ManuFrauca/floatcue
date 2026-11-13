@@ -21,6 +21,12 @@
         <item quantity="one">%1$d word</item>
         <item quantity="other">%1$d words</item>
     </plurals>
+    <string name="duration_short">less than 5 s</string>
+    <string name="duration_seconds">about %1$d s</string>
+    <string name="duration_minutes">about %1$d min</string>
+    <string name="duration_minutes_seconds">about %1$d min %2$d s</string>
+    <string name="script_replaced">Script replaced with the shared text</string>
+    <string name="undo">Undo</string>
     <string name="preview_placeholder">Your script will appear here.</string>
     <string name="cd_script">Script. Double-tap to play or pause.</string>
     <string name="state_playing">Playing</string>

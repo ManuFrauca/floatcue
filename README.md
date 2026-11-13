@@ -55,7 +55,7 @@ FloatCue doesn't record anything. It floats a strip of text over the camera app 
   <tr>
     <td width="52%" valign="top">
       <h3>1. Write your script</h3>
-      <p>Paste or type it. Mark the places where you want to breathe with <code>[pause]</code>.</p>
+      <p>Paste or type it, or share it to FloatCue from Docs, Keep or any other app. Mark the places where you want to breathe with <code>[pause]</code>.</p>
       <h3>2. Start and open your camera</h3>
       <p>Tap <b>Start teleprompter</b>. FloatCue steps aside and the strip appears at the top of the screen. Open your camera app and hit record.</p>
       <h3>3. Tap the text and read</h3>
@@ -80,6 +80,7 @@ FloatCue doesn't record anything. It floats a strip of text over the camera app 
 | Highlighted `[pause]` markers | Play, pause and stop from the notification | TalkBack support, including moving the strip |
 | Thin progress bar along the top of the strip | Drag the grip to move the strip | Word count and estimated reading time as you write |
 | Sits below the camera cutout | Short on-strip hints for speed and start | Everything saves automatically |
+| In English or Spanish, following your phone | Share text from any app to load it as the script | Undo, if a shared text replaced your script |
 
 Portrait only. Touches outside the strip go straight to the app underneath, so the shutter button keeps working.
 
@@ -93,6 +94,9 @@ Requires Android 8.0 or newer. Developed and tested for a Pixel 8 Pro on Android
    shasum -a 256 floatcue-*.apk
    ```
 3. Install it and open FloatCue. It asks for **Display over other apps** and takes you to the right settings screen.
+
+> [!TIP]
+> To get new versions without checking this page, add `https://github.com/ManuFrauca/floatcue` to [Obtainium](https://github.com/ImranR98/Obtainium) and turn on **Include prereleases**, since every FloatCue release is a preview for now.
 
 > [!IMPORTANT]
 > On Android 15 and newer, apps installed from outside an app store may find that toggle greyed out. Open **App info** for FloatCue, tap the **&#8942;** menu, choose **Allow restricted settings**, and try again.

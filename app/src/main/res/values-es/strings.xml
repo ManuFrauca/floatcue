@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FloatCue</string>
+    <string name="script_label">Guion</string>
+    <string name="script_placeholder">Escribe aquí tu guion. Pon [pausa] donde quieras respirar.</string>
+    <string name="speed">Velocidad</string>
+    <string name="speed_value">%1$d líneas/min</string>
+    <string name="text_size">Tamaño del texto</string>
+    <string name="opacity">Opacidad del fondo</string>
+    <string name="percent_value">%1$d %%</string>
+    <string name="number_value">%1$d</string>
+    <string name="window_height">Altura de la ventana</string>
+    <string name="start">Iniciar teleprompter</string>
+    <string name="back_to_teleprompter">Volver al teleprompter</string>
+    <string name="stop">Detener teleprompter</string>
+    <string name="hud_tap_to_start">Toca para empezar</string>
+    <string name="start_helper">Primero escribe tu guion.</string>
+    <string name="stats_empty">Escribe o pega tu guion para empezar.</string>
+    <string name="stats_format">%1$s, %2$s</string>
+    <plurals name="words">
+        <item quantity="one">%1$d palabra</item>
+        <item quantity="many">%1$d palabras</item>
+        <item quantity="other">%1$d palabras</item>
+    </plurals>
+    <string name="duration_short">menos de 5 s</string>
+    <string name="duration_seconds">alrededor de %1$d s</string>
+    <string name="duration_minutes">alrededor de %1$d min</string>
+    <string name="duration_minutes_seconds">alrededor de %1$d min %2$d s</string>
+    <string name="script_replaced">Guion sustituido por el texto compartido</string>
+    <string name="undo">Deshacer</string>
+    <string name="preview_placeholder">Tu guion aparecerá aquí.</string>
+    <string name="cd_script">Guion. Toca dos veces para reproducir o pausar.</string>
+    <string name="state_playing">Reproduciendo</string>
+    <string name="state_paused">En pausa</string>
+    <string name="action_move_up">Subir</string>
+    <string name="action_move_down">Bajar</string>
+    <string name="perm_title">Falta un permiso</string>
+    <string name="perm_body">FloatCue muestra el teleprompter encima de tu app de cámara. Para continuar, activa \"Mostrar sobre otras aplicaciones\" para FloatCue.</string>
+    <string name="perm_restricted">Si el interruptor está en gris (Android 15 o posterior, apps instaladas fuera de la tienda): abre Información de la aplicación, toca el menú de tres puntos y elige \"Permitir ajustes restringidos\".</string>
+    <string name="perm_button">Abrir ajustes</string>
+    <string name="empty_script_hint">Tu guion está vacío. Abre FloatCue y escríbelo primero.</string>
+    <string name="notif_channel">Teleprompter</string>
+    <string name="notif_title">FloatCue está activo</string>
+    <string name="notif_text">El teleprompter se muestra encima de otras aplicaciones.</string>
+    <string name="action_pause">Pausar</string>
+    <string name="action_play">Reproducir</string>
+    <string name="action_stop">Detener</string>
+    <string name="cd_slower">Más lento</string>
+    <string name="cd_faster">Más rápido</string>
+    <string name="cd_play">Reproducir</string>
+    <string name="cd_pause">Pausar</string>
+    <string name="cd_restart">Volver al principio</string>
+    <string name="cd_close">Cerrar teleprompter</string>
+    <string name="cd_move">Arrastra para mover el teleprompter</string>
+</resources>

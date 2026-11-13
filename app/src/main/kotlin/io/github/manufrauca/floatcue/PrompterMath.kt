@@ -37,15 +37,8 @@ internal fun wordCount(text: String): Int = text.split(Regex("\\s+")).count { it
 /** Reading time for [lineCount] lines at [lpm]: the first line is already on the reading line. */
 internal fun durationSeconds(lineCount: Int, lpm: Int): Float = max(0, lineCount - 1) * 60f / lpm
 
-/** "about 1 min 20 s", "about 40 s", "about 2 min"; rounded to 5 s. */
-internal fun durationLabel(seconds: Float): String {
-    val s = ((seconds / 5f).roundToInt() * 5)
-    if (s < 5) return "less than 5 s"
-    val m = s / 60
-    val r = s % 60
-    return "about " + when {
-        m == 0 -> "$r s"
-        r == 0 -> "$m min"
-        else -> "$m min $r s"
-    }
+/** Reading time rounded to 5 s, as whole minutes and remaining seconds; (0, 0) means under 5 s. */
+internal fun roundedDuration(seconds: Float): Pair<Int, Int> {
+    val s = (seconds / 5f).roundToInt() * 5
+    return s / 60 to s % 60
 }

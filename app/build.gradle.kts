@@ -13,8 +13,8 @@ android {
         applicationId = "io.github.manufrauca.floatcue"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
     }
 
     // Signing comes from keystore.properties (gitignored) or FLOATCUE_* env vars; without either, release stays unsigned.
@@ -42,6 +42,8 @@ android {
     }
 
     buildFeatures { compose = true }
+    // Lists English and Spanish in the system per-app language setting (Android 13+).
+    androidResources { generateLocaleConfig = true }
 }
 
 dependencies {

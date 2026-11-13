@@ -93,8 +93,8 @@ class OverlayService : Service() {
         root?.visibility = View.GONE
     }
 
-    /** Called when the settings screen goes away: re-reads every pref, keeps reading progress, stays paused. */
-    fun refresh() = showOverlay(prompter?.progress ?: 0f)
+    /** Called when the settings screen goes away: re-reads every pref and stays paused; keeps reading progress unless [fromStart]. */
+    fun refresh(fromStart: Boolean = false) = showOverlay(if (fromStart) 0f else prompter?.progress ?: 0f)
 
     private fun showOverlay(progress: Float) {
         removeOverlay() // restart: re-read settings, never two windows
@@ -117,7 +117,7 @@ class OverlayService : Service() {
         }
         params = lp
 
-        val p = PrompterView(ui).apply {
+        val p = PrompterView(ui, strings = resources).apply {
             speedLpm = prefs.speedLpm
             val script = prefs.script
             setScript(script.ifBlank { getString(R.string.empty_script_hint) }, prefs.textSize, progress)

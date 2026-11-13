@@ -50,6 +50,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -87,6 +91,9 @@ private const val PREVIEW_CHARS = 400 // the preview only shows the first lines
 class MainActivity : ComponentActivity() {
     private lateinit var prefs: Prefs
     private var canDraw by mutableStateOf(false)
+    private var script by mutableStateOf("") // activity-level: a shared text can replace it
+    private var undoScript by mutableStateOf<String?>(null) // the script a share replaced, while Undo is offered
+    private var scriptReplaced = false // the strip then starts the new script from the top
     private var running by mutableStateOf(false)
     private var speed by mutableIntStateOf(0) // activity-level: the overlay's buttons change it too
 
@@ -98,6 +105,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false) // the script may be private
         prefs = Prefs(this)
+        script = prefs.script
+        if (savedInstanceState == null) receiveShare(intent) // not again on recreation: it would undo later edits
         if (Build.VERSION.SDK_INT >= 33 && !prefs.notificationPermissionAsked &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
@@ -114,18 +123,36 @@ class MainActivity : ComponentActivity() {
         canDraw = Settings.canDrawOverlays(this)
         running = OverlayService.instance != null
         speed = prefs.speedLpm
+        script = prefs.script // another instance (e.g. one opened by a share) may have changed it
     }
 
     override fun onPause() {
         resumed = false
-        OverlayService.instance?.refresh()
+        OverlayService.instance?.refresh(fromStart = scriptReplaced)
+        scriptReplaced = false
         super.onPause()
+    }
+
+    // singleTop: a share that brings our existing task to the front arrives here instead of being dropped.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        receiveShare(intent)
+    }
+
+    /** Text shared from another app (Docs, Notes…) becomes the script; the old one stays one tap away. */
+    private fun receiveShare(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND) return
+        val shared = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.take(MAX_SCRIPT_CHARS)
+        if (shared.isNullOrBlank() || shared == script) return
+        if (script.isNotBlank()) undoScript = script
+        script = shared
+        prefs.script = shared
+        scriptReplaced = true
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun Screen() {
-        var script by remember { mutableStateOf(prefs.script) }
         var size by remember { mutableIntStateOf(prefs.textSize) }
         var opacity by remember { mutableIntStateOf(prefs.opacity) }
         var height by remember { mutableIntStateOf(prefs.heightPercent) }
@@ -139,7 +166,24 @@ class MainActivity : ComponentActivity() {
             lines = withContext(Dispatchers.Default) { countScriptLines(dm, script, size) }
         }
 
-        Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.app_name)) }) }) { inner ->
+        val snackbar = remember { SnackbarHostState() }
+        val replacedMessage = stringResource(R.string.script_replaced)
+        val undoLabel = stringResource(R.string.undo)
+        LaunchedEffect(undoScript) {
+            val old = undoScript ?: return@LaunchedEffect
+            val result = snackbar.showSnackbar(replacedMessage, undoLabel, duration = SnackbarDuration.Long)
+            if (result == SnackbarResult.ActionPerformed) {
+                script = old
+                prefs.script = old
+                scriptReplaced = false
+            }
+            undoScript = null
+        }
+
+        Scaffold(
+            topBar = { TopAppBar(title = { Text(stringResource(R.string.app_name)) }) },
+            snackbarHost = { SnackbarHost(snackbar) },
+        ) { inner ->
             Column(
                 Modifier.fillMaxSize().padding(inner).consumeWindowInsets(inner).imePadding()
                     .verticalScroll(rememberScrollState()).padding(16.dp),
@@ -161,7 +205,7 @@ class MainActivity : ComponentActivity() {
                             lines < 0 -> pluralStringResource(R.plurals.words, words, words)
                             else -> stringResource(
                                 R.string.stats_format, pluralStringResource(R.plurals.words, words, words),
-                                durationLabel(durationSeconds(lines, speed)),
+                                durationText(durationSeconds(lines, speed)),
                             )
                         },
                         style = MaterialTheme.typography.bodySmall,
@@ -257,6 +301,18 @@ private class PauseTransformation(private val color: Color) : VisualTransformati
             }
         }
         return TransformedText(styled, OffsetMapping.Identity)
+    }
+}
+
+/** "about 1 min 20 s", "about 40 s", "about 2 min", in the app's language. */
+@Composable
+private fun durationText(seconds: Float): String {
+    val (m, s) = roundedDuration(seconds)
+    return when {
+        m == 0 && s == 0 -> stringResource(R.string.duration_short)
+        m == 0 -> stringResource(R.string.duration_seconds, s)
+        s == 0 -> stringResource(R.string.duration_minutes, m)
+        else -> stringResource(R.string.duration_minutes_seconds, m, s)
     }
 }
 

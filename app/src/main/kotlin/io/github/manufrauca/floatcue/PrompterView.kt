@@ -2,6 +2,7 @@ package io.github.manufrauca.floatcue
 
 import android.animation.ValueAnimator
 import android.content.Context
+import android.content.res.Resources
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
@@ -31,7 +32,12 @@ import kotlin.math.min
  * vertical drag scrubs. With [preview] it only draws one static frame (settings screen).
  */
 @Suppress("ViewConstructor") // only ever built in code
-class PrompterView(context: Context, private val preview: Boolean = false) : View(context) {
+class PrompterView(
+    context: Context,
+    private val preview: Boolean = false,
+    // The overlay passes its service's resources: a window context ignores the per-app language (Android 13+).
+    private val strings: Resources = context.resources,
+) : View(context) {
     var onPlayingChanged: ((Boolean) -> Unit)? = null
 
     private val density = resources.displayMetrics.density
@@ -84,9 +90,9 @@ class PrompterView(context: Context, private val preview: Boolean = false) : Vie
         if (preview) {
             importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         } else {
-            contentDescription = context.getString(R.string.cd_script)
+            contentDescription = strings.getString(R.string.cd_script)
             isClickable = true
-            ViewCompat.setStateDescription(this, context.getString(R.string.state_paused))
+            ViewCompat.setStateDescription(this, strings.getString(R.string.state_paused))
         }
     }
 
@@ -141,7 +147,7 @@ class PrompterView(context: Context, private val preview: Boolean = false) : Vie
         playing = value
         if (isAttachedToWindow && (value || velocity != 0f)) startFrames()
         ViewCompat.setStateDescription(
-            this, context.getString(if (value) R.string.state_playing else R.string.state_paused),
+            this, strings.getString(if (value) R.string.state_playing else R.string.state_paused),
         )
         invalidate()
         onPlayingChanged?.invoke(value)
@@ -187,7 +193,7 @@ class PrompterView(context: Context, private val preview: Boolean = false) : Vie
         showStartHint()
     }
 
-    fun showStartHint() = showHud(context.getString(R.string.hud_tap_to_start), 0)
+    fun showStartHint() = showHud(strings.getString(R.string.hud_tap_to_start), 0)
 
     private fun startCountdown() {
         countdown = 4

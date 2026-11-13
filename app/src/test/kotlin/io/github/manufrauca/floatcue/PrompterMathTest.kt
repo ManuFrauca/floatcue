@@ -49,12 +49,12 @@ class PrompterMathTest {
         assertEquals(0f, durationSeconds(0, 30), 0f)
     }
 
-    @Test fun durationLabelFormats() {
-        assertEquals("about 40 s", durationLabel(40f))
-        assertEquals("about 1 min 20 s", durationLabel(81f))
-        assertEquals("about 2 min", durationLabel(119f))
-        assertEquals("about 5 s", durationLabel(3f))
-        assertEquals("less than 5 s", durationLabel(1f))
+    @Test fun roundedDurationSplitsMinutesAndRoundsTo5s() {
+        assertEquals(0 to 40, roundedDuration(40f))
+        assertEquals(1 to 20, roundedDuration(81f))
+        assertEquals(2 to 0, roundedDuration(119f))
+        assertEquals(0 to 5, roundedDuration(3f))
+        assertEquals(0 to 0, roundedDuration(1f))
     }
 
     @Test fun wordCountIgnoresWhitespaceRuns() {
