@@ -6,6 +6,7 @@ import android.content.res.Resources
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PorterDuff
@@ -55,7 +56,10 @@ class PrompterView(
     private val fadePaint = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT) }
     private val fadeTop = Paint(fadePaint)
     private val fadeBottom = Paint(fadePaint)
-    private val dimPaint = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN) }
+    private val readPaint = Paint().apply { color = READ_ALPHA_COLOR; xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN) }
+    private val sweepPaint = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN) }
+    private val sweepMatrix = Matrix()
+    private var sweepWidth = 0f
     private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val hudFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = INK; style = Paint.Style.FILL }
     private val hudStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -76,6 +80,7 @@ class PrompterView(
     private var countdown = 0
     private var hudLabel: String? = null
     private var hudBig = false
+    private var hudAtBottom = false
     private var hudAlpha = 0f
     private var hudAnim: ValueAnimator? = null
 
@@ -206,11 +211,15 @@ class PrompterView(
         countdown = 0
     }
 
-    /** Shows the pill; [durationMs] <= 0 keeps it until [hideHud]. Timed texts are also announced. */
-    fun showHud(label: String, durationMs: Long = 1200, big: Boolean = false) {
+    /**
+     * Shows the pill; [durationMs] <= 0 keeps it until [hideHud]. Timed texts are also announced.
+     * [atBottom] puts it just above the buttons, away from the line being read.
+     */
+    fun showHud(label: String, durationMs: Long = 1200, big: Boolean = false, atBottom: Boolean = false) {
         removeCallbacks(hideHudRunnable)
         hudLabel = label
         hudBig = big
+        hudAtBottom = atBottom
         animateHud(1f, 120)
         if (durationMs > 0) {
             postDelayed(hideHudRunnable, durationMs)
@@ -246,24 +255,22 @@ class PrompterView(
     /** Vertical centre of the line being read, measured from the top of the view: the second row. */
     private fun readLineY() = 1.5f * lineHeight() + 8 * density
 
-    private fun maxScroll() = max(0f, (layout?.height ?: 0) - lineHeight())
+    // The end is one row past the last line, so the read sweep can finish it.
+    private fun maxScroll() = (layout?.height ?: 0).toFloat()
 
     private fun rebuild() {
-        // Everything above the current line is "already read": dim it with a fixed gradient the text scrolls through.
         val lh = lineHeight()
-        val end = readLineY() - lh / 2f
-        dimPaint.shader = LinearGradient(
-            // Short ramp in the gap between lines, so the previous line reads as fully dimmed while it scrolls.
-            0f, end - lh * 0.2f, 0f, end, READ_ALPHA_COLOR, Color.BLACK, Shader.TileMode.CLAMP,
-        )
+        // The sweep's soft edge: from grey to full brightness over about one letter, eased at both ends.
+        sweepWidth = paint.textSize * SWEEP_EM
+        sweepPaint.shader = LinearGradient(-sweepWidth, 0f, 0f, 0f, SWEEP_COLORS, SWEEP_STOPS, Shader.TileMode.CLAMP)
         val w = (width - padLeft - padRight).toInt()
         if (w <= 0) return
         val l = buildLayout(text, paint, w)
         layout = l
         val pending = restoreProgress
         scrollY = when {
-            // Static frame: previous line dimmed above the caret, current line on it.
-            preview -> if (l.lineCount > 1) lh else 0f
+            // Static frame: previous line read, the next one partly read.
+            preview -> if (l.lineCount > 1) lh * PREVIEW_ROWS else 0f
             pending != null -> scrollFor(pending, maxScroll())
             else -> scrollY.coerceIn(0f, maxScroll())
         }
@@ -297,8 +304,9 @@ class PrompterView(
         val lh = lineHeight()
         val readY = readLineY()
         val checkpoint = canvas.saveLayer(0f, 0f, w, h, null)
-        canvas.withTranslation(padLeft, readY - lh / 2f - scrollY) { l.draw(this) }
-        canvas.drawRect(0f, 0f, w, h, dimPaint)
+        val textTop = readY - lh / 2f - scrollY
+        canvas.withTranslation(padLeft, textTop) { l.draw(this) }
+        drawRead(canvas, l, textTop, w)
         canvas.drawRect(0f, 0f, w, fade, fadeTop)
         canvas.drawRect(0f, h - fade, w, h, fadeBottom)
         canvas.restoreToCount(checkpoint)
@@ -316,6 +324,25 @@ class PrompterView(
             drawProgressBar(canvas, w, h)
             drawHud(canvas, w, h)
         }
+    }
+
+    /**
+     * Greys out what has been read, like a typewriter: every line above the one being read, and that line from
+     * the left up to a soft edge. Line i is read while scrollY runs through its own height, so it starts at the
+     * caret and is finished one row above it; the sweep follows the scrolling, so it speeds up, slows down,
+     * pauses and scrubs with it.
+     */
+    private fun drawRead(canvas: Canvas, l: StaticLayout, textTop: Float, w: Float) {
+        if (scrollY <= 0f) return
+        val line = l.getLineForVertical(scrollY.toInt())
+        val top = l.getLineTop(line).toFloat()
+        val bottom = l.getLineBottom(line).toFloat()
+        val bandTop = textTop + top
+        if (bandTop > 0f) canvas.drawRect(0f, 0f, w, bandTop, readPaint)
+        val x = sweepX(scrollY, top, bottom, padLeft + l.getLineLeft(line), padLeft + l.getLineRight(line), sweepWidth)
+        sweepMatrix.setTranslate(x, 0f)
+        sweepPaint.shader.setLocalMatrix(sweepMatrix)
+        canvas.drawRect(0f, bandTop, w, textTop + bottom, sweepPaint)
     }
 
     private fun drawProgressBar(canvas: Canvas, w: Float, h: Float) {
@@ -340,12 +367,13 @@ class PrompterView(
         hudText.color = if (hudBig) AMBER else Color.WHITE
         val fm = hudText.fontMetrics
         val textH = fm.descent - fm.ascent
-        // The band above the reading line holds only already-read text (or nothing at the start), so the pill never covers what you're about to read.
+        // Start hint and countdown: in the band above the reading line, empty at the start.
+        // Speed: just above the buttons that changed it, far from the line being read.
         val band = readLineY() - lineHeight() / 2f
         val ph = min(textH + 10 * density, band - 4 * density)
         val pw = max(hudText.measureText(label) + 24 * density, ph)
         val cx = padLeft + (w - padLeft - padRight) / 2f
-        val cy = band / 2f + density
+        val cy = if (hudAtBottom) h - ph / 2f - 6 * density else band / 2f + density
         hudRect.set(cx - pw / 2f, cy - ph / 2f, cx + pw / 2f, cy + ph / 2f)
         val a = (hudAlpha * 255).toInt()
         hudFill.alpha = (0.92f * a).toInt()
@@ -387,6 +415,11 @@ class PrompterView(
     private companion object {
         const val EASE_TAU = 0.22f
         const val READ_ALPHA_COLOR = 0x61000000 // 0.38 alpha: text that has already been read
+        const val SWEEP_EM = 1.2f // soft edge width, in text sizes
+        const val PREVIEW_ROWS = 1.45f
+        // 0.38 to 1 alpha along a smoothstep, so the edge has no visible start or end.
+        val SWEEP_STOPS = floatArrayOf(0f, 0.25f, 0.5f, 0.75f, 1f)
+        val SWEEP_COLORS = intArrayOf(0x61000000, 0x7A000000, 0xB0000000.toInt(), 0xE6000000.toInt(), Color.BLACK)
         const val TRACK = 0x24FFFFFF // white at 14 %
     }
 }

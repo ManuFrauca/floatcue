@@ -186,7 +186,7 @@ class OverlayService : Service() {
         val p = prompter ?: return
         p.speedLpm = stepSpeed(p.speedLpm, factor)
         prefs.speedLpm = p.speedLpm
-        p.showHud(getString(R.string.speed_value, p.speedLpm))
+        p.showHud(getString(R.string.speed_value, p.speedLpm), atBottom = true)
     }
 
     private fun View.tick() { performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) }

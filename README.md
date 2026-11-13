@@ -62,7 +62,7 @@ FloatCue doesn't record anything. It floats a strip of text over the camera app 
       <p>The text scrolls at the pace you set. Tap to pause, drag to go back a line, and use <b>&minus;</b> / <b>+</b> to adjust the speed as you go.</p>
     </td>
     <td width="48%" valign="top">
-      <img src="assets/demo.gif" width="100%" alt="The teleprompter strip scrolling a script, with the amber caret marking the reading line and the word [pause] highlighted in amber">
+      <img src="assets/demo.gif" width="100%" alt="The teleprompter strip scrolling a script: a 3-2-1 countdown, then each line greys out from left to right as it is read, with the word [pause] highlighted in amber">
     </td>
   </tr>
 </table>
@@ -76,7 +76,7 @@ FloatCue doesn't record anything. It floats a strip of text over the camera app 
 |---|---|---|
 | Smooth, time-based scrolling with eased speed changes | Tap to play or pause, with a 3-2-1 countdown at the start | Strip hides while you edit, then returns where you left off |
 | Speed in lines per minute (10&ndash;80) | Drag the text to go back or forward | Adjustable text size, opacity and height, with a live preview |
-| Amber caret marks the reading line; text you have read dims | Slower, faster, restart, close | Text shadow and soft edges for any background |
+| Amber caret marks the reading line; each line greys out as you read it | Slower, faster, restart, close | Text shadow and soft edges for any background |
 | Highlighted `[pause]` markers | Play, pause and stop from the notification | TalkBack support, including moving the strip |
 | Thin progress bar along the top of the strip | Drag the grip to move the strip | Word count and estimated reading time as you write |
 | Sits below the camera cutout | Short on-strip hints for speed and start | Everything saves automatically |

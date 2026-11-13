@@ -43,9 +43,9 @@ class PrompterMathTest {
         assertEquals(0f, easeToward(50f, 0f, 5f, 0.22f), 0.01f)
     }
 
-    @Test fun durationUsesLinesMinusOne() {
-        assertEquals(60f, durationSeconds(31, 30), 0.001f)
-        assertEquals(0f, durationSeconds(1, 30), 0f)
+    @Test fun durationCountsEveryLine() {
+        assertEquals(60f, durationSeconds(30, 30), 0.001f)
+        assertEquals(2f, durationSeconds(1, 30), 0.001f)
         assertEquals(0f, durationSeconds(0, 30), 0f)
     }
 
@@ -55,6 +55,14 @@ class PrompterMathTest {
         assertEquals(2 to 0, roundedDuration(119f))
         assertEquals(0 to 5, roundedDuration(3f))
         assertEquals(0 to 0, roundedDuration(1f))
+    }
+
+    @Test fun sweepCrossesTheLineAsItScrollsPast() {
+        // Line from y 100 to 150, text from x 20 to 220, edge 30.
+        assertEquals(20f, sweepX(100f, 100f, 150f, 20f, 220f, 30f), 0.001f) // just reached: nothing grey
+        assertEquals(135f, sweepX(125f, 100f, 150f, 20f, 220f, 30f), 0.001f) // half-way
+        assertEquals(250f, sweepX(150f, 100f, 150f, 20f, 220f, 30f), 0.001f) // left: edge past the text
+        assertEquals(250f, sweepX(400f, 100f, 150f, 20f, 220f, 30f), 0.001f) // clamped
     }
 
     @Test fun wordCountIgnoresWhitespaceRuns() {

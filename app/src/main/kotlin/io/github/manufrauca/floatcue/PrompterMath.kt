@@ -32,10 +32,19 @@ internal fun clampY(y: Int, top: Int, screenH: Int, h: Int): Int = y.coerceIn(to
 internal fun easeToward(v: Float, target: Float, dt: Float, tau: Float): Float =
     if (tau <= 0f) target else v + (target - v) * (1f - exp(-dt / tau))
 
+/**
+ * Where the read sweep's edge is on a line spanning [top]..[bottom] (layout y) and [left]..[right] (x):
+ * at [left] when scrollY reaches the line, one [edge] past [right] when it leaves, so it ends fully grey.
+ */
+internal fun sweepX(scrollY: Float, top: Float, bottom: Float, left: Float, right: Float, edge: Float): Float {
+    val f = if (bottom <= top) 1f else ((scrollY - top) / (bottom - top)).coerceIn(0f, 1f)
+    return left + f * (right - left + edge)
+}
+
 internal fun wordCount(text: String): Int = text.split(Regex("\\s+")).count { it.isNotEmpty() }
 
-/** Reading time for [lineCount] lines at [lpm]: the first line is already on the reading line. */
-internal fun durationSeconds(lineCount: Int, lpm: Int): Float = max(0, lineCount - 1) * 60f / lpm
+/** Reading time for [lineCount] lines at [lpm]: every line, the last one included, is swept once. */
+internal fun durationSeconds(lineCount: Int, lpm: Int): Float = max(0, lineCount) * 60f / lpm
 
 /** Reading time rounded to 5 s, as whole minutes and remaining seconds; (0, 0) means under 5 s. */
 internal fun roundedDuration(seconds: Float): Pair<Int, Int> {
