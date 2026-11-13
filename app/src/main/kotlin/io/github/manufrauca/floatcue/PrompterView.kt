@@ -6,7 +6,6 @@ import android.content.res.Resources
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
-import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PorterDuff
@@ -58,7 +57,6 @@ class PrompterView(
     private val fadeBottom = Paint(fadePaint)
     private val readPaint = Paint().apply { color = READ_ALPHA_COLOR; xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN) }
     private val sweepPaint = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN) }
-    private val sweepMatrix = Matrix()
     private var sweepWidth = 0f
     private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val hudFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = INK; style = Paint.Style.FILL }
@@ -252,7 +250,7 @@ class PrompterView(
 
     private fun lineHeight() = lineHeightOf(paint)
 
-    /** Vertical centre of the line being read, measured from the top of the view: the second row. */
+    /** Vertical centre of the caret row (the second row), where each line starts being read; from the view's top. */
     private fun readLineY() = 1.5f * lineHeight() + 8 * density
 
     // The end is one row past the last line, so the read sweep can finish it.
@@ -340,9 +338,8 @@ class PrompterView(
         val bandTop = textTop + top
         if (bandTop > 0f) canvas.drawRect(0f, 0f, w, bandTop, readPaint)
         val x = sweepX(scrollY, top, bottom, padLeft + l.getLineLeft(line), padLeft + l.getLineRight(line), sweepWidth)
-        sweepMatrix.setTranslate(x, 0f)
-        sweepPaint.shader.setLocalMatrix(sweepMatrix)
-        canvas.drawRect(0f, bandTop, w, textTop + bottom, sweepPaint)
+        // Move the canvas, not the gradient: changing a shader's matrix rebuilds the native shader every frame.
+        canvas.withTranslation(x, 0f) { drawRect(-x, bandTop, w - x, textTop + bottom, sweepPaint) }
     }
 
     private fun drawProgressBar(canvas: Canvas, w: Float, h: Float) {

@@ -1,6 +1,7 @@
 package io.github.manufrauca.floatcue
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PrompterMathTest {
@@ -61,8 +62,16 @@ class PrompterMathTest {
         // Line from y 100 to 150, text from x 20 to 220, edge 30.
         assertEquals(20f, sweepX(100f, 100f, 150f, 20f, 220f, 30f), 0.001f) // just reached: nothing grey
         assertEquals(135f, sweepX(125f, 100f, 150f, 20f, 220f, 30f), 0.001f) // half-way
-        assertEquals(250f, sweepX(150f, 100f, 150f, 20f, 220f, 30f), 0.001f) // left: edge past the text
+        assertEquals(250f, sweepX(150f, 100f, 150f, 20f, 220f, 30f), 0.001f) // scrolled past the line: edge one width past the text
         assertEquals(250f, sweepX(400f, 100f, 150f, 20f, 220f, 30f), 0.001f) // clamped
+        assertEquals(250f, sweepX(50f, 100f, 100f, 20f, 220f, 30f), 0.001f) // zero-height line counts as read
+    }
+
+    @Test fun sharedTextIgnoresMissingOrBlankTextAndCapsLength() {
+        assertNull(sharedText(null, 10)) // e.g. a shared file: no text extra
+        assertNull(sharedText(" \n\t", 10))
+        assertEquals("Hello", sharedText("Hello", 10))
+        assertEquals("abcde", sharedText("abcdefgh", 5))
     }
 
     @Test fun wordCountIgnoresWhitespaceRuns() {

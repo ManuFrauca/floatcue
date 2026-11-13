@@ -27,6 +27,7 @@
     <string name="duration_minutes_seconds">about %1$d min %2$d s</string>
     <string name="script_replaced">Script replaced with the shared text</string>
     <string name="undo">Undo</string>
+    <string name="share_failed">Nothing to load. Share the text itself, not a file.</string>
     <string name="preview_placeholder">Your script will appear here.</string>
     <string name="cd_script">Script. Double-tap to play or pause.</string>
     <string name="state_playing">Playing</string>

@@ -10,6 +10,10 @@ class Prefs(context: Context) {
     var script: String
         get() = sp.getString("script", "") ?: ""
         set(v) = sp.edit { putString("script", v) }
+    /** The script a share replaced, for Undo. */
+    var previousScript: String
+        get() = sp.getString("previousScript", "") ?: ""
+        set(v) = sp.edit { putString("previousScript", v) }
     /** Reading pace in lines per minute. */
     var speedLpm: Int
         get() = sp.getInt("speedLpm", 30).coerceIn(SPEED_MIN, SPEED_MAX)
