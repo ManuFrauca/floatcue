@@ -62,7 +62,7 @@ class PrompterMathTest {
         // Line from y 100 to 150, text from x 20 to 220, edge 30.
         assertEquals(20f, sweepX(100f, 100f, 150f, 20f, 220f, 30f), 0.001f) // just reached: nothing grey
         assertEquals(135f, sweepX(125f, 100f, 150f, 20f, 220f, 30f), 0.001f) // half-way
-        assertEquals(250f, sweepX(150f, 100f, 150f, 20f, 220f, 30f), 0.001f) // scrolled past the line: edge one width past the text
+        assertEquals(250f, sweepX(150f, 100f, 150f, 20f, 220f, 30f), 0.001f) // scrolled past the line: edge one edge-width past the text's right end
         assertEquals(250f, sweepX(400f, 100f, 150f, 20f, 220f, 30f), 0.001f) // clamped
         assertEquals(250f, sweepX(50f, 100f, 100f, 20f, 220f, 30f), 0.001f) // zero-height line counts as read
     }

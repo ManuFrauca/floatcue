@@ -338,7 +338,7 @@ class PrompterView(
         val bandTop = textTop + top
         if (bandTop > 0f) canvas.drawRect(0f, 0f, w, bandTop, readPaint)
         val x = sweepX(scrollY, top, bottom, padLeft + l.getLineLeft(line), padLeft + l.getLineRight(line), sweepWidth)
-        // Move the canvas, not the gradient: changing a shader's matrix rebuilds the native shader every frame.
+        // Move the canvas, not the gradient, so the shader itself never changes from frame to frame.
         canvas.withTranslation(x, 0f) { drawRect(-x, bandTop, w - x, textTop + bottom, sweepPaint) }
     }
 

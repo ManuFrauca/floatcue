@@ -10,7 +10,7 @@ class Prefs(context: Context) {
     var script: String
         get() = sp.getString("script", "") ?: ""
         set(v) = sp.edit { putString("script", v) }
-    /** The script a share replaced, for Undo. */
+    /** The script a share replaced, kept only while Undo is offered. */
     var previousScript: String
         get() = sp.getString("previousScript", "") ?: ""
         set(v) = sp.edit { putString("previousScript", v) }

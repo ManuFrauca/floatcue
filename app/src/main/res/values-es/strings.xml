@@ -28,7 +28,7 @@
     <string name="duration_minutes_seconds">alrededor de %1$d min %2$d s</string>
     <string name="script_replaced">Guion sustituido por el texto compartido</string>
     <string name="undo">Deshacer</string>
-    <string name="share_failed">No hay texto que cargar. Comparte el texto, no un archivo.</string>
+    <string name="share_failed">No hay texto que cargar. Comparte el propio texto, no un archivo.</string>
     <string name="preview_placeholder">Tu guion aparecerá aquí.</string>
     <string name="cd_script">Guion. Toca dos veces para reproducir o pausar.</string>
     <string name="state_playing">Reproduciendo</string>

@@ -154,8 +154,8 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Text shared from another app (a note from Keep, text selected in Docs…) becomes the script. The old script is
-     * saved in prefs and offered back with Undo while the snackbar shows.
+     * Text shared from another app (a note from Keep, text selected in Docs…) becomes the script. The script it
+     * replaces is saved in prefs and offered back with Undo while the snackbar shows, then forgotten.
      */
     private fun receiveShare(intent: Intent?) {
         if (intent?.action != Intent.ACTION_SEND) return
@@ -163,8 +163,7 @@ class MainActivity : ComponentActivity() {
         if (shared == null) { shareFailed = true; return }
         val current = prefs.script // not `script`: another instance may have changed it since this one resumed
         if (shared == current) return
-        // A second share while Undo is still offered keeps the older script, so Undo goes back before both.
-        if (!undoOffered && current.isNotBlank()) {
+        if (current.isNotBlank()) { // Undo goes back one step: to the script just before this share
             prefs.previousScript = current
             undoOffered = true
         }
@@ -196,12 +195,14 @@ class MainActivity : ComponentActivity() {
         LaunchedEffect(undoOffered) {
             if (!undoOffered) return@LaunchedEffect
             val result = snackbar.showSnackbar(replacedMessage, undoLabel, duration = SnackbarDuration.Long)
-            if (result == SnackbarResult.ActionPerformed) {
+            // Blank only if another FloatCue window already used it: never undo to an empty script.
+            if (result == SnackbarResult.ActionPerformed && prefs.previousScript.isNotBlank()) {
                 script = prefs.previousScript
                 prefs.script = script
                 scriptReplaced = false
             }
             undoOffered = false
+            prefs.previousScript = "" // the script may be private: no copy outlives the Undo window
         }
         LaunchedEffect(shareFailed) {
             if (!shareFailed) return@LaunchedEffect
