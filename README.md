@@ -46,7 +46,7 @@ FloatCue doesn't record anything. It floats a strip of text over the camera app 
 |---|---|---|
 | Uses your external mic | Depends on the app | Whatever your camera app uses |
 | Camera features (4K, HDR, stabilisation) | The app's own | All of your camera app's |
-| Permissions | Camera, microphone, storage | Display over other apps only |
+| Permissions | Camera, microphone, storage | Display over other apps and notifications |
 | Sends data anywhere | Varies | Can't: no internet permission |
 
 ## How it works
@@ -55,11 +55,11 @@ FloatCue doesn't record anything. It floats a strip of text over the camera app 
   <tr>
     <td width="52%" valign="top">
       <h3>1. Write your script</h3>
-      <p>Paste or type it, or share it to FloatCue from Docs, Keep or any other app. Mark the places where you want to breathe with <code>[pause]</code>.</p>
+      <p>Paste or type it, or share it to FloatCue: a note from Keep, text you select in Docs, or anything another app shares as text. Mark the places where you want to breathe with <code>[pause]</code>.</p>
       <h3>2. Start and open your camera</h3>
       <p>Tap <b>Start teleprompter</b>. FloatCue steps aside and the strip appears at the top of the screen. Open your camera app and hit record.</p>
       <h3>3. Tap the text and read</h3>
-      <p>The text scrolls at the pace you set. Tap to pause, drag to go back a line, and use <b>&minus;</b> / <b>+</b> to adjust the speed as you go.</p>
+      <p>The text scrolls at the pace you set. Tap to pause, drag the text to move back or forward (it pauses), and use <b>&minus;</b> / <b>+</b> to adjust the speed as you go.</p>
     </td>
     <td width="48%" valign="top">
       <img src="assets/demo.gif" width="100%" alt="The teleprompter strip scrolling a script: a 3-2-1 countdown, then each line greys out from left to right as it is read, with the word [pause] highlighted in amber">
@@ -80,9 +80,9 @@ FloatCue doesn't record anything. It floats a strip of text over the camera app 
 | Highlighted `[pause]` markers | Play, pause and stop from the notification | TalkBack support, including moving the strip |
 | Thin progress bar along the top of the strip | Drag the grip to move the strip | Word count and estimated reading time as you write |
 | Sits below the camera cutout | Short on-strip hints for speed and start | Everything saves automatically |
-| In English or Spanish, following your phone | Share text from any app to load it as the script | Undo, if a shared text replaced your script |
+| In English or Spanish, following your phone | Share text from any app to load it as the script | Undo for a few seconds after a share replaces your script |
 
-Portrait only. Touches outside the strip go straight to the app underneath, so the shutter button keeps working.
+Designed for portrait; landscape isn't supported. Touches outside the strip go straight to the app underneath, so the shutter button keeps working.
 
 ## Install
 
@@ -93,6 +93,7 @@ Requires Android 8.0 or newer. Developed and tested for a Pixel 8 Pro on Android
    ```sh
    shasum -a 256 floatcue-*.apk
    ```
+   Every release is signed with the same certificate, SHA-256 `138d196fb5884dece9cb2dbc5c4a0f6ac52e4c7455131e7ad85b0b1075e00130`.
 3. Install it and open FloatCue. It asks for **Display over other apps** and takes you to the right settings screen.
 
 > [!TIP]
@@ -106,7 +107,7 @@ Requires Android 8.0 or newer. Developed and tested for a Pixel 8 Pro on Android
 FloatCue has no internet permission, so it cannot send your script anywhere. Your script stays on your phone:
 
 - It is not included in Google's cloud backup. It does move to a new phone if you use device-to-device transfer.
-- It is hidden from the recent-apps thumbnail.
+- On Android 13 and newer, it is hidden from the recent-apps thumbnail.
 - It is never logged and never shown in the notification.
 
 | Permission | Why FloatCue needs it |

@@ -93,7 +93,10 @@ class OverlayService : Service() {
         root?.visibility = View.GONE
     }
 
-    /** Called when the settings screen goes away: re-reads every pref and stays paused; keeps reading progress unless [fromStart]. */
+    /**
+     * Called when the settings screen goes to the background (not on a rotation or language change): re-reads every
+     * pref and stays paused; keeps reading progress unless [fromStart].
+     */
     fun refresh(fromStart: Boolean = false) = showOverlay(if (fromStart) 0f else prompter?.progress ?: 0f)
 
     private fun showOverlay(progress: Float) {

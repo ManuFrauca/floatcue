@@ -41,6 +41,9 @@ internal fun sweepX(scrollY: Float, top: Float, bottom: Float, left: Float, righ
     return left + f * (right - left + edge)
 }
 
+/** The text a share should load as the script, cut to [max] chars; null when it carries none (e.g. a file). */
+internal fun sharedText(extra: CharSequence?, max: Int): String? = extra?.toString()?.take(max)?.takeIf { it.isNotBlank() }
+
 internal fun wordCount(text: String): Int = text.split(Regex("\\s+")).count { it.isNotEmpty() }
 
 /** Reading time for [lineCount] lines at [lpm]: every line, the last one included, is swept once. */

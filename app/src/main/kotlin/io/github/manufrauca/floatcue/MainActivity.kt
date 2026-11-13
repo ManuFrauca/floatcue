@@ -92,7 +92,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var prefs: Prefs
     private var canDraw by mutableStateOf(false)
     private var script by mutableStateOf("") // activity-level: a shared text can replace it
-    private var undoScript by mutableStateOf<String?>(null) // the script a share replaced, while Undo is offered
+    private var undoOffered by mutableStateOf(false) // the snackbar offers to bring back prefs.previousScript
+    private var shareFailed by mutableStateOf(false) // a share without text (e.g. a file): say so
     private var scriptReplaced = false // the strip then starts the new script from the top
     private var running by mutableStateOf(false)
     private var speed by mutableIntStateOf(0) // activity-level: the overlay's buttons change it too
@@ -106,6 +107,8 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false) // the script may be private
         prefs = Prefs(this)
         script = prefs.script
+        undoOffered = savedInstanceState?.getBoolean(KEY_UNDO_OFFERED) ?: false
+        scriptReplaced = savedInstanceState?.getBoolean(KEY_SCRIPT_REPLACED) ?: false
         if (savedInstanceState == null) receiveShare(intent) // not again on recreation: it would undo later edits
         if (Build.VERSION.SDK_INT >= 33 && !prefs.notificationPermissionAsked &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -121,30 +124,49 @@ class MainActivity : ComponentActivity() {
         resumed = true
         OverlayService.instance?.hide()
         canDraw = Settings.canDrawOverlays(this)
-        running = OverlayService.instance != null
+        // Permission turned off while the strip ran: stop it, so neither this screen nor the notification says it runs.
+        if (!canDraw && OverlayService.instance != null) OverlayService.stop(this)
+        running = canDraw && OverlayService.instance != null
         speed = prefs.speedLpm
         script = prefs.script // another instance (e.g. one opened by a share) may have changed it
     }
 
     override fun onPause() {
-        resumed = false
-        OverlayService.instance?.refresh(fromStart = scriptReplaced)
-        scriptReplaced = false
+        // A rotation or language change rebuilds this screen at once: don't flash the strip in between.
+        if (!isChangingConfigurations) {
+            resumed = false
+            OverlayService.instance?.refresh(fromStart = scriptReplaced)
+            scriptReplaced = false
+        }
         super.onPause()
     }
 
-    // singleTop: a share that brings our existing task to the front arrives here instead of being dropped.
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_UNDO_OFFERED, undoOffered)
+        outState.putBoolean(KEY_SCRIPT_REPLACED, scriptReplaced)
+    }
+
+    // singleTop: when a share brings our task to the front with this screen on top, the text arrives here.
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         receiveShare(intent)
     }
 
-    /** Text shared from another app (Docs, Notes…) becomes the script; the old one stays one tap away. */
+    /**
+     * Text shared from another app (a note from Keep, text selected in Docs…) becomes the script. The script it
+     * replaces is saved in prefs and offered back with Undo while the snackbar shows, then forgotten.
+     */
     private fun receiveShare(intent: Intent?) {
         if (intent?.action != Intent.ACTION_SEND) return
-        val shared = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.take(MAX_SCRIPT_CHARS)
-        if (shared.isNullOrBlank() || shared == script) return
-        if (script.isNotBlank()) undoScript = script
+        val shared = sharedText(intent.getCharSequenceExtra(Intent.EXTRA_TEXT), MAX_SCRIPT_CHARS)
+        if (shared == null) { shareFailed = true; return }
+        val current = prefs.script // not `script`: another instance may have changed it since this one resumed
+        if (shared == current) return
+        if (current.isNotBlank()) { // Undo goes back one step: to the script just before this share
+            prefs.previousScript = current
+            undoOffered = true
+        }
         script = shared
         prefs.script = shared
         scriptReplaced = true
@@ -169,15 +191,23 @@ class MainActivity : ComponentActivity() {
         val snackbar = remember { SnackbarHostState() }
         val replacedMessage = stringResource(R.string.script_replaced)
         val undoLabel = stringResource(R.string.undo)
-        LaunchedEffect(undoScript) {
-            val old = undoScript ?: return@LaunchedEffect
+        val shareFailedMessage = stringResource(R.string.share_failed)
+        LaunchedEffect(undoOffered) {
+            if (!undoOffered) return@LaunchedEffect
             val result = snackbar.showSnackbar(replacedMessage, undoLabel, duration = SnackbarDuration.Long)
-            if (result == SnackbarResult.ActionPerformed) {
-                script = old
-                prefs.script = old
+            // Blank only if another FloatCue window already used it: never undo to an empty script.
+            if (result == SnackbarResult.ActionPerformed && prefs.previousScript.isNotBlank()) {
+                script = prefs.previousScript
+                prefs.script = script
                 scriptReplaced = false
             }
-            undoScript = null
+            undoOffered = false
+            prefs.previousScript = "" // the script may be private: no copy outlives the Undo window
+        }
+        LaunchedEffect(shareFailed) {
+            if (!shareFailed) return@LaunchedEffect
+            snackbar.showSnackbar(shareFailedMessage)
+            shareFailed = false
         }
 
         Scaffold(
@@ -282,6 +312,9 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
+        private const val KEY_UNDO_OFFERED = "undoOffered"
+        private const val KEY_SCRIPT_REPLACED = "scriptReplaced"
+
         /** True while this screen is in front; the overlay stays hidden meanwhile. */
         @Volatile var resumed = false
             private set
