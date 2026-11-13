@@ -70,7 +70,6 @@ class OverlayService : Service() {
                 @SuppressLint("InlinedApi")
                 val type = ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
                 ServiceCompat.startForeground(this, NOTIF_ID, notification(false), type)
-                if (!Settings.canDrawOverlays(this)) { stopSelf(); return START_NOT_STICKY }
                 showOverlay(prompter?.progress ?: 0f)
             }
         }
@@ -99,6 +98,8 @@ class OverlayService : Service() {
 
     private fun showOverlay(progress: Float) {
         removeOverlay() // restart: re-read settings, never two windows
+        // The permission can be revoked while the strip runs; adding the window would then crash the app.
+        if (!Settings.canDrawOverlays(this)) { stopSelf(); return }
         val dp = resources.displayMetrics.density
         measureScreen()
         val h = screenH * prefs.heightPercent / 100
